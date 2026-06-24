@@ -1,5 +1,6 @@
 package com.ticket.baseball.user.service;
 
+import com.ticket.baseball.user.dto.UserLoginRequest;
 import com.ticket.baseball.user.dto.UserSignupRequest;
 import com.ticket.baseball.user.entity.User;
 import com.ticket.baseball.user.repository.UserRepository;
@@ -35,6 +36,21 @@ public class UserService {
 
         // 3. 저장
         userRepository.save(user);
+
+        return user.getId();
+        
+        
+        
+    }
+    @Transactional(readOnly = true)
+    public Long login(UserLoginRequest request) {
+
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이메일입니다."));
+
+        if (!user.getPassword().equals(request.getPassword())) {
+            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
+        }
 
         return user.getId();
     }
