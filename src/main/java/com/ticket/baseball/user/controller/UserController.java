@@ -1,6 +1,7 @@
 package com.ticket.baseball.user.controller;
 
 import com.ticket.baseball.user.dto.UserLoginRequest;
+import com.ticket.baseball.user.dto.UserLoginResponse;
 import com.ticket.baseball.user.dto.UserSignupRequest;
 import com.ticket.baseball.user.service.UserService;
 import org.springframework.web.bind.annotation.*;
@@ -24,9 +25,9 @@ public class UserController {
     public Long signup(@RequestBody UserSignupRequest request) {
         return userService.signup(request);
     }
-    
+
     @PostMapping("/login")
-    public Long login(@RequestBody UserLoginRequest request) {
+    public UserLoginResponse login(@RequestBody UserLoginRequest request) {
         return userService.login(request);
     }
 }
