@@ -1,5 +1,6 @@
 package com.ticket.baseball.user.service;
 
+import com.ticket.baseball.auth.JwtProvider;
 import com.ticket.baseball.user.dto.UserLoginRequest;
 import com.ticket.baseball.user.dto.UserLoginResponse;
 import com.ticket.baseball.user.dto.UserSignupRequest;
@@ -16,11 +17,14 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtProvider jwtProvider;
 
     public UserService(UserRepository userRepository,
-                       PasswordEncoder passwordEncoder) {
+                       PasswordEncoder passwordEncoder,
+                       JwtProvider jwtProvider) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jwtProvider = jwtProvider;
     }
 
     @Transactional
@@ -57,11 +61,15 @@ public class UserService {
             throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
         }
 
-        // 3. 로그인 성공
+        // 3. JWT 생성
+        String accessToken = jwtProvider.createToken(user.getEmail());
+
+        // 4. 로그인 성공
         return new UserLoginResponse(
                 user.getId(),
                 user.getName(),
-                user.getEmail()
+                user.getEmail(),
+                accessToken
         );
     }
 }
