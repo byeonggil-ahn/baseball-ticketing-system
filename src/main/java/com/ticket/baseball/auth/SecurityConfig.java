@@ -24,22 +24,30 @@ public class SecurityConfig {
             JwtAuthenticationFilter jwtFilter) throws Exception {
 
         http
-                // CSRF 비활성화
+                // CSRF 비활성화 (REST API에서는 일반적으로 사용하지 않음)
                 .csrf(csrf -> csrf.disable())
 
-                // 접근 권한 설정
+                // URL 접근 권한 설정
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/users/signup", "/users/login").permitAll()
+
+                        // 회원가입, 로그인, 테스트 API는 누구나 접근 가능
+                        .requestMatchers(
+                                "/users/signup",
+                                "/users/login",
+                                "/users/test"   // 브라우저에서 테스트하기 위해 임시 허용
+                        ).permitAll()
+
+                        // 그 외 모든 요청은 JWT 인증 필요
                         .anyRequest().authenticated()
                 )
 
-                // 기본 로그인 비활성화
+                // Spring Security 기본 로그인 페이지 비활성화
                 .formLogin(form -> form.disable())
 
-                // HTTP Basic 비활성화
+                // HTTP Basic 인증 비활성화
                 .httpBasic(basic -> basic.disable());
 
-        // JWT 필터 등록
+        // JWT 인증 필터를 UsernamePasswordAuthenticationFilter 이전에 실행
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

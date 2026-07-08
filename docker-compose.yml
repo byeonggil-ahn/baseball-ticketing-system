@@ -1,0 +1,67 @@
+services:
+
+  # Spring Boot 애플리케이션
+  app:
+    # Docker 이미지를 빌드할 위치
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+
+    # 컨테이너 이름
+    container_name: baseball-app
+
+    # 포트 연결 (내 PC : Docker)
+    ports:
+      - "8081:8081"
+
+    # 내 프로젝트와 Docker를 연결
+    volumes:
+      - .:/app
+
+    # MySQL, Redis가 먼저 실행되도록 설정
+    depends_on:
+      - mysql
+      - redis
+
+    # 컨테이너 내부 작업 위치
+    working_dir: /app
+
+  # MySQL 데이터베이스
+  mysql:
+    # 공식 MySQL 이미지 사용
+    image: mysql:8.4
+
+    # 컨테이너 이름
+    container_name: baseball-mysql
+
+    # 포트 연결
+    ports:
+      - "3307:3306"
+
+    # MySQL 초기 설정
+    environment:
+      # MySQL root 계정 비밀번호
+      MYSQL_ROOT_PASSWORD: 12345678
+
+      # 컨테이너가 처음 실행될 때 생성할 데이터베이스
+      MYSQL_DATABASE: baseball_ticket
+
+    # DB 데이터를 영구 저장
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+  # Redis
+  redis:
+    # 공식 Redis 이미지 사용
+    image: redis:8
+
+    # 컨테이너 이름
+    container_name: baseball-redis
+
+    # 포트 연결
+    ports:
+      - "6379:6379"
+
+# Docker가 관리하는 볼륨
+volumes:
+  mysql-data:
