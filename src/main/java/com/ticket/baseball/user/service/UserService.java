@@ -1,6 +1,8 @@
 package com.ticket.baseball.user.service;
 
 import com.ticket.baseball.auth.JwtProvider;
+import com.ticket.baseball.exception.BusinessException;
+import com.ticket.baseball.exception.ErrorCode;
 import com.ticket.baseball.user.dto.UserLoginRequest;
 import com.ticket.baseball.user.dto.UserLoginResponse;
 import com.ticket.baseball.user.dto.UserSignupRequest;
@@ -27,15 +29,18 @@ public class UserService {
         this.jwtProvider = jwtProvider;
     }
 
+
+    // 회원가입 처리
     @Transactional
     public Long signup(UserSignupRequest request) {
 
         // 1. 이메일 중복 체크
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("이미 존재하는 이메일입니다.");
+            throw new BusinessException(ErrorCode.DUPLICATE_USER);
         }
 
-        // 2. Builder로 객체 생성
+
+        // 2. 비밀번호 암호화 후 회원 객체 생성
         User user = User.builder()
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
@@ -43,28 +48,41 @@ public class UserService {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        // 3. 저장
+
+        // 3. 회원 저장
         userRepository.save(user);
 
+
+        // 4. 생성된 회원 ID 반환
         return user.getId();
     }
 
+
+    // 로그인 처리
     @Transactional(readOnly = true)
     public UserLoginResponse login(UserLoginRequest request) {
 
-        // 1. 이메일 존재 여부 확인
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이메일입니다."));
 
-        // 2. 비밀번호 확인
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
+        // 1. 이메일로 회원 조회
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+
+        // 2. 비밀번호 검증
+        if (!passwordEncoder.matches(
+                request.getPassword(),
+                user.getPassword())) {
+
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
+
 
         // 3. JWT 생성
         String accessToken = jwtProvider.createToken(user.getEmail());
 
-        // 4. 로그인 성공
+
+        // 4. 로그인 성공 응답 반환
         return new UserLoginResponse(
                 user.getId(),
                 user.getName(),

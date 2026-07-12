@@ -1,5 +1,6 @@
-package com.ticket.baseball.auth;
+package com.ticket.baseball.config;
 
+import com.ticket.baseball.auth.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
