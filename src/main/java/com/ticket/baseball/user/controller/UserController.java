@@ -1,5 +1,6 @@
 package com.ticket.baseball.user.controller;
 
+import com.ticket.baseball.user.dto.UserInfoResponse;
 import com.ticket.baseball.user.dto.UserLoginRequest;
 import com.ticket.baseball.user.dto.UserLoginResponse;
 import com.ticket.baseball.user.dto.UserSignupRequest;
@@ -43,5 +44,11 @@ public class UserController {
             @RequestBody UserLoginRequest request) {
 
         return userService.login(request);
+    }
+
+    // 현재 로그인한 회원 정보 조회 API
+    @GetMapping("/myinfo")
+    public UserInfoResponse getMyInfo() {
+        return userService.getMyInfo();
     }
 }

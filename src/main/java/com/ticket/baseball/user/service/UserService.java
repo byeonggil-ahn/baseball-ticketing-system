@@ -3,11 +3,13 @@ package com.ticket.baseball.user.service;
 import com.ticket.baseball.auth.JwtProvider;
 import com.ticket.baseball.exception.BusinessException;
 import com.ticket.baseball.exception.ErrorCode;
+import com.ticket.baseball.user.dto.UserInfoResponse;
 import com.ticket.baseball.user.dto.UserLoginRequest;
 import com.ticket.baseball.user.dto.UserLoginResponse;
 import com.ticket.baseball.user.dto.UserSignupRequest;
 import com.ticket.baseball.user.entity.User;
 import com.ticket.baseball.user.repository.UserRepository;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -88,6 +90,31 @@ public class UserService {
                 user.getName(),
                 user.getEmail(),
                 accessToken
+        );
+    }
+
+
+    // 현재 로그인한 회원 정보 조회
+    @Transactional(readOnly = true)
+    public UserInfoResponse getMyInfo() {
+
+        // 1. SecurityContext에서 로그인한 사용자 이메일 조회
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+
+        // 2. 이메일로 회원 조회
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+
+        // 3. 회원 정보 반환
+        return new UserInfoResponse(
+                user.getId(),
+                user.getEmail(),
+                user.getName()
         );
     }
 }
