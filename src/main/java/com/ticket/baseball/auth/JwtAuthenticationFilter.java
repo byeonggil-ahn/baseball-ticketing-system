@@ -1,9 +1,11 @@
 package com.ticket.baseball.auth;
 
+import com.ticket.baseball.exception.JwtEntryPoint;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -16,10 +18,15 @@ import java.util.Collections;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtProvider jwtProvider;
+    private final JwtEntryPoint jwtEntryPoint;
 
-    // JwtProvider 주입
-    public JwtAuthenticationFilter(JwtProvider jwtProvider) {
+    // JwtProvider, JwtEntryPoint 주입
+    public JwtAuthenticationFilter(
+            JwtProvider jwtProvider,
+            JwtEntryPoint jwtEntryPoint) {
+
         this.jwtProvider = jwtProvider;
+        this.jwtEntryPoint = jwtEntryPoint;
     }
 
     @Override
@@ -40,9 +47,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // "Bearer " 제거 후 토큰 추출
         String token = authHeader.substring(7);
 
-        // 토큰이 유효하지 않으면 다음 필터로 이동
+        // JWT가 유효하지 않으면 인증 실패 처리
         if (!jwtProvider.validateToken(token)) {
-            filterChain.doFilter(request, response);
+            jwtEntryPoint.commence(
+                    request,
+                    response,
+                    new InsufficientAuthenticationException("유효하지 않은 JWT입니다.")
+            );
             return;
         }
 

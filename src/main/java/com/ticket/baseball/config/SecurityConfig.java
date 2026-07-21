@@ -1,6 +1,7 @@
 package com.ticket.baseball.config;
 
 import com.ticket.baseball.auth.JwtAuthenticationFilter;
+import com.ticket.baseball.exception.JwtEntryPoint;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -22,7 +23,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
-            JwtAuthenticationFilter jwtFilter) throws Exception {
+            JwtAuthenticationFilter jwtFilter,
+            JwtEntryPoint jwtEntryPoint) throws Exception {
 
         http
                 // CSRF 비활성화 (REST API에서는 일반적으로 사용하지 않음)
@@ -46,7 +48,12 @@ public class SecurityConfig {
                 .formLogin(form -> form.disable())
 
                 // HTTP Basic 인증 비활성화
-                .httpBasic(basic -> basic.disable());
+                .httpBasic(basic -> basic.disable())
+
+                // JWT 인증 실패 처리
+                .exceptionHandling(exception ->
+                        exception.authenticationEntryPoint(jwtEntryPoint)
+                );
 
         // JWT 인증 필터를 UsernamePasswordAuthenticationFilter 이전에 실행
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
