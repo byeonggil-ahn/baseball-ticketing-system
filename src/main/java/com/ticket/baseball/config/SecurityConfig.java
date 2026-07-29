@@ -33,11 +33,12 @@ public class SecurityConfig {
                 // URL 접근 권한 설정
                 .authorizeHttpRequests(auth -> auth
 
-                        // 회원가입, 로그인, 테스트 API는 누구나 접근 가능
+                        // 회원가입, 로그인, 경기 테스트 API는 누구나 접근 가능
                         .requestMatchers(
                                 "/users/signup",
                                 "/users/login",
-                                "/users/test"   // 브라우저에서 테스트하기 위해 임시 허용
+                                "/users/test",
+                                "/games"
                         ).permitAll()
 
                         // 그 외 모든 요청은 JWT 인증 필요
