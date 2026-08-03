@@ -40,9 +40,15 @@ public class Seat {
     @Column(nullable = false)
     private SeatStatus status;
 
+
     // 낙관적 락 버전
     @Version
     private Long version;
+
+    // 좌석 상태 변경
+    public void reserve() {
+        this.status = SeatStatus.RESERVED;
+    }
 
     @Builder
     public Seat(Game game,
