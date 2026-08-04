@@ -14,6 +14,7 @@ import com.ticket.baseball.seat.repository.SeatRepository;
 import com.ticket.baseball.user.entity.User;
 import com.ticket.baseball.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -76,6 +77,18 @@ public class ReservationService {
 
         // 좌석 상태를 RESERVED로 변경
         seat.reserve();
+
+        // 낙관적 락 충돌 처리
+        try {
+            seatRepository.saveAndFlush(seat);
+
+        } catch (ObjectOptimisticLockingFailureException e) {
+
+            // 다른 사용자가 먼저 예약한 경우
+            throw new BusinessException(
+                    ErrorCode.OPTIMISTIC_LOCK_CONFLICT
+            );
+        }
 
         // 예약 생성
         Reservation reservation = Reservation.builder()

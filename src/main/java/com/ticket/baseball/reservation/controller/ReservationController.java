@@ -26,5 +26,7 @@ public class ReservationController {
     public ReservationResponse createReservation(
             @RequestBody ReservationRequest request
     ) {
-        return reservationService.createReservation(request, 3126L);    }
+        // 현재는 테스트를 위해 사용자 ID를 임시로 사용
+        return reservationService.createReservation(request, 3126L);
+    }
 }
