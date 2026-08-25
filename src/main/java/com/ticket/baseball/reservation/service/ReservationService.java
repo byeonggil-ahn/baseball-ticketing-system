@@ -11,6 +11,7 @@ import com.ticket.baseball.reservation.repository.ReservationRepository;
 import com.ticket.baseball.seat.entity.Seat;
 import com.ticket.baseball.seat.entity.SeatStatus;
 import com.ticket.baseball.seat.repository.SeatRepository;
+import com.ticket.baseball.seat.service.SeatLockService;
 import com.ticket.baseball.user.entity.User;
 import com.ticket.baseball.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,7 @@ public class ReservationService {
     private final GameRepository gameRepository;
     private final SeatRepository seatRepository;
     private final UserRepository userRepository;
+    private final SeatLockService seatLockService;
 
     // 예약 전체 조회
     public List<ReservationResponse> getReservations() {
@@ -45,19 +47,16 @@ public class ReservationService {
             Long userId
     ) {
 
-        // 사용자 조회
         User user = userRepository.findById(userId)
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.USER_NOT_FOUND)
                 );
 
-        // 경기 조회
         Game game = gameRepository.findById(request.getGameId())
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.INVALID_INPUT)
                 );
 
-        // 좌석 조회
         Seat seat = seatRepository.findById(request.getSeatId())
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.INVALID_INPUT)
@@ -68,8 +67,26 @@ public class ReservationService {
             throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
 
-        // 이미 예약된 좌석인지 확인
+        // Redis에서 좌석을 먼저 선점
+        boolean locked = seatLockService.lockSeat(
+                request.getGameId(),
+                request.getSeatId(),
+                userId
+        );
+
+        if (!locked) {
+            throw new BusinessException(
+                    ErrorCode.DUPLICATE_RESERVATION
+            );
+        }
+
+        // DB에서 이미 예약된 좌석인지 확인
         if (seat.getStatus() == SeatStatus.RESERVED) {
+            seatLockService.unlockSeat(
+                    request.getGameId(),
+                    request.getSeatId()
+            );
+
             throw new BusinessException(
                     ErrorCode.DUPLICATE_RESERVATION
             );
@@ -84,7 +101,11 @@ public class ReservationService {
 
         } catch (ObjectOptimisticLockingFailureException e) {
 
-            // 다른 사용자가 먼저 예약한 경우
+            seatLockService.unlockSeat(
+                    request.getGameId(),
+                    request.getSeatId()
+            );
+
             throw new BusinessException(
                     ErrorCode.OPTIMISTIC_LOCK_CONFLICT
             );
@@ -97,7 +118,6 @@ public class ReservationService {
                 .seat(seat)
                 .build();
 
-        // 예약 저장
         Reservation savedReservation =
                 reservationRepository.save(reservation);
 

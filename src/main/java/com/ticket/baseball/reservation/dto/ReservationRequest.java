@@ -7,9 +7,12 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class ReservationRequest {
 
-    // 경기 ID
     private Long gameId;
 
-    // 좌석 ID
     private Long seatId;
+
+    public ReservationRequest(Long gameId, Long seatId) {
+        this.gameId = gameId;
+        this.seatId = seatId;
+    }
 }
