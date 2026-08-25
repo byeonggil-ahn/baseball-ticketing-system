@@ -40,14 +40,18 @@ public class Seat {
     @Column(nullable = false)
     private SeatStatus status;
 
-
     // 낙관적 락 버전
     @Version
     private Long version;
 
-    // 좌석 상태 변경
+    // 좌석 예약 - 이 좌석은 이제 사용 불가
     public void reserve() {
         this.status = SeatStatus.RESERVED;
+    }
+
+    // 예약 취소 시 좌석을 다시 사용 가능 상태로 변경
+    public void cancelReservation() {
+        this.status = SeatStatus.AVAILABLE;
     }
 
     @Builder

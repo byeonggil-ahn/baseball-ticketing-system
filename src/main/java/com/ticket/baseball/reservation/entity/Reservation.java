@@ -38,11 +38,22 @@ public class Reservation {
     // 예약 시간
     private LocalDateTime reservedAt;
 
+    // 예약 상태
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ReservationStatus status;
+
     @Builder
     public Reservation(User user, Game game, Seat seat) {
         this.user = user;
         this.game = game;
         this.seat = seat;
         this.reservedAt = LocalDateTime.now();
+        this.status = ReservationStatus.RESERVED;
+    }
+
+    // 예약 취소
+    public void cancel() {
+        this.status = ReservationStatus.CANCELLED;
     }
 }

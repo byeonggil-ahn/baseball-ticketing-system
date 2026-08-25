@@ -26,7 +26,14 @@ public class ReservationController {
     public ReservationResponse createReservation(
             @RequestBody ReservationRequest request
     ) {
-        // 현재는 테스트를 위해 사용자 ID를 임시로 사용
-        return reservationService.createReservation(request, 3126L);
+        return reservationService.createReservation(request);
+    }
+
+    // 예약 취소
+    @DeleteMapping("/{reservationId}")
+    public void cancelReservation(
+            @PathVariable Long reservationId
+    ) {
+        reservationService.cancelReservation(reservationId);
     }
 }

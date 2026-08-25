@@ -7,6 +7,7 @@ import com.ticket.baseball.game.repository.GameRepository;
 import com.ticket.baseball.reservation.dto.ReservationRequest;
 import com.ticket.baseball.reservation.dto.ReservationResponse;
 import com.ticket.baseball.reservation.entity.Reservation;
+import com.ticket.baseball.reservation.entity.ReservationStatus;
 import com.ticket.baseball.reservation.repository.ReservationRepository;
 import com.ticket.baseball.seat.entity.Seat;
 import com.ticket.baseball.seat.entity.SeatStatus;
@@ -16,6 +17,7 @@ import com.ticket.baseball.user.entity.User;
 import com.ticket.baseball.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,11 +45,16 @@ public class ReservationService {
     // 예약 생성
     @Transactional
     public ReservationResponse createReservation(
-            ReservationRequest request,
-            Long userId
+            ReservationRequest request
     ) {
 
-        User user = userRepository.findById(userId)
+        // 현재 JWT로 로그인한 사용자의 이메일 가져오기
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+        // 이메일로 사용자 조회
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.USER_NOT_FOUND)
                 );
@@ -71,7 +78,7 @@ public class ReservationService {
         boolean locked = seatLockService.lockSeat(
                 request.getGameId(),
                 request.getSeatId(),
-                userId
+                user.getId()
         );
 
         if (!locked) {
@@ -82,6 +89,7 @@ public class ReservationService {
 
         // DB에서 이미 예약된 좌석인지 확인
         if (seat.getStatus() == SeatStatus.RESERVED) {
+
             seatLockService.unlockSeat(
                     request.getGameId(),
                     request.getSeatId()
@@ -97,6 +105,7 @@ public class ReservationService {
 
         // 낙관적 락 충돌 처리
         try {
+
             seatRepository.saveAndFlush(seat);
 
         } catch (ObjectOptimisticLockingFailureException e) {
@@ -122,6 +131,60 @@ public class ReservationService {
                 reservationRepository.save(reservation);
 
         return toResponse(savedReservation);
+    }
+
+    // 예약 취소
+    @Transactional
+    public void cancelReservation(
+            Long reservationId
+    ) {
+
+        // 현재 JWT로 로그인한 사용자의 이메일 가져오기
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+        // 이메일로 현재 사용자 조회
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.USER_NOT_FOUND)
+                );
+
+        // 예약 조회
+        Reservation reservation =
+                reservationRepository.findById(reservationId)
+                        .orElseThrow(() ->
+                                new BusinessException(
+                                        ErrorCode.RESERVATION_NOT_FOUND
+                                )
+                        );
+
+        // 예약한 사용자 본인인지 확인
+        if (!reservation.getUser().getId().equals(user.getId())) {
+            throw new BusinessException(
+                    ErrorCode.RESERVATION_ACCESS_DENIED
+            );
+        }
+
+        // 이미 취소된 예약인지 확인
+        if (reservation.getStatus() == ReservationStatus.CANCELLED) {
+            throw new BusinessException(
+                    ErrorCode.RESERVATION_ALREADY_CANCELLED
+            );
+        }
+
+        // 예약 상태를 CANCELLED로 변경
+        reservation.cancel();
+
+        // 좌석 상태를 AVAILABLE로 변경
+        Seat seat = reservation.getSeat();
+        seat.cancelReservation();
+
+        // Redis 좌석 선점 해제
+        seatLockService.unlockSeat(
+                reservation.getGame().getId(),
+                seat.getId()
+        );
     }
 
     // Entity를 DTO로 변환
