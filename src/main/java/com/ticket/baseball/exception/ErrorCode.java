@@ -15,6 +15,9 @@ public enum ErrorCode {
     DUPLICATE_USER("이미 존재하는 사용자입니다."),
     DUPLICATE_RESERVATION("이미 예약된 좌석입니다."),
 
+    // 대기열 관련
+    QUEUE_NOT_PASSED("대기열을 통과해야 예약할 수 있습니다."),
+
     // 예약 관련
     RESERVATION_NOT_FOUND("예약을 찾을 수 없습니다."),
     RESERVATION_ALREADY_CANCELLED("이미 취소된 예약입니다."),

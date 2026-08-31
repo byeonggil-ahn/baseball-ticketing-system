@@ -11,6 +11,7 @@ import java.util.Set;
 public class QueueService {
 
     private static final String QUEUE_KEY = "queue:waiting";
+    private static final String PASSED_QUEUE_KEY = "queue:passed";
 
     private final RedisTemplate<String, String> redisTemplate;
 
@@ -59,6 +60,19 @@ public class QueueService {
         redisTemplate.opsForZSet()
                 .remove(QUEUE_KEY, userId);
 
+        // 대기열 통과 사용자로 등록
+        redisTemplate.opsForSet()
+                .add(PASSED_QUEUE_KEY, userId);
+
         return userId;
+    }
+
+    // 대기열 통과 여부 확인
+    public boolean isQueuePassed(Long userId) {
+
+        Boolean passed = redisTemplate.opsForSet()
+                .isMember(PASSED_QUEUE_KEY, userId.toString());
+
+        return Boolean.TRUE.equals(passed);
     }
 }

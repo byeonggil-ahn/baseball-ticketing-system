@@ -4,6 +4,7 @@ import com.ticket.baseball.exception.BusinessException;
 import com.ticket.baseball.exception.ErrorCode;
 import com.ticket.baseball.game.entity.Game;
 import com.ticket.baseball.game.repository.GameRepository;
+import com.ticket.baseball.queue.QueueService;
 import com.ticket.baseball.reservation.dto.ReservationRequest;
 import com.ticket.baseball.reservation.dto.ReservationResponse;
 import com.ticket.baseball.reservation.entity.Reservation;
@@ -32,6 +33,7 @@ public class ReservationService {
     private final SeatRepository seatRepository;
     private final UserRepository userRepository;
     private final SeatLockService seatLockService;
+    private final QueueService queueService;
 
     // 예약 전체 조회
     public List<ReservationResponse> getReservations() {
@@ -58,6 +60,13 @@ public class ReservationService {
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.USER_NOT_FOUND)
                 );
+
+        // 대기열 통과 여부 확인
+        if (!queueService.isQueuePassed(user.getId())) {
+            throw new BusinessException(
+                    ErrorCode.QUEUE_NOT_PASSED
+            );
+        }
 
         Game game = gameRepository.findById(request.getGameId())
                 .orElseThrow(() ->
