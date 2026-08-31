@@ -61,18 +61,23 @@ public class ReservationService {
                         new BusinessException(ErrorCode.USER_NOT_FOUND)
                 );
 
-        // 대기열 통과 여부 확인
-        if (!queueService.isQueuePassed(user.getId())) {
-            throw new BusinessException(
-                    ErrorCode.QUEUE_NOT_PASSED
-            );
-        }
-
+        // 경기 조회
         Game game = gameRepository.findById(request.getGameId())
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.INVALID_INPUT)
                 );
 
+        // 해당 경기의 대기열 통과 여부 확인
+        if (!queueService.isQueuePassed(
+                game.getId(),
+                user.getId()
+        )) {
+            throw new BusinessException(
+                    ErrorCode.QUEUE_NOT_PASSED
+            );
+        }
+
+        // 좌석 조회
         Seat seat = seatRepository.findById(request.getSeatId())
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.INVALID_INPUT)

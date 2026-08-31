@@ -31,35 +31,52 @@ public class QueueController {
 
     // 대기열 입장
     @PostMapping("/enter")
-    public void enterQueue() {
+    public void enterQueue(
+            @RequestParam Long gameId
+    ) {
 
         User user = getCurrentUser();
 
-        queueService.enterQueue(user.getId());
+        queueService.enterQueue(
+                gameId,
+                user.getId()
+        );
     }
 
     // 대기열 순번 조회
     @GetMapping("/position")
-    public Long getQueuePosition() {
+    public Long getQueuePosition(
+            @RequestParam Long gameId
+    ) {
 
         User user = getCurrentUser();
 
-        return queueService.getQueuePosition(user.getId());
+        return queueService.getQueuePosition(
+                gameId,
+                user.getId()
+        );
     }
 
     // 대기열에서 사용자 제거
     @DeleteMapping("/leave")
-    public void removeFromQueue() {
+    public void removeFromQueue(
+            @RequestParam Long gameId
+    ) {
 
         User user = getCurrentUser();
 
-        queueService.removeFromQueue(user.getId());
+        queueService.removeFromQueue(
+                gameId,
+                user.getId()
+        );
     }
 
-    // 대기열 첫 번째 사용자 처리
+    // 해당 경기의 대기열 첫 번째 사용자 처리
     @PostMapping("/process")
-    public String processQueue() {
+    public String processQueue(
+            @RequestParam Long gameId
+    ) {
 
-        return queueService.processQueue();
+        return queueService.processQueue(gameId);
     }
 }
