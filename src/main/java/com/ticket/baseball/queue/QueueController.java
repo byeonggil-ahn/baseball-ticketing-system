@@ -71,12 +71,25 @@ public class QueueController {
         );
     }
 
-    // 해당 경기의 대기열 첫 번째 사용자 처리
+    // 대기열 첫 번째 사용자 통과
     @PostMapping("/process")
     public String processQueue(
             @RequestParam Long gameId
     ) {
 
         return queueService.processQueue(gameId);
+    }
+
+    // 대기열 통과 여부 확인
+    @GetMapping("/passed")
+    public boolean isQueuePassed(
+            @RequestParam Long gameId,
+            @RequestParam Long userId
+    ) {
+
+        return queueService.isQueuePassed(
+                gameId,
+                userId
+        );
     }
 }

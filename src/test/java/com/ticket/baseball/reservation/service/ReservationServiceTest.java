@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
@@ -42,12 +44,14 @@ class ReservationServiceTest {
     @Autowired
     private TransactionTemplate transactionTemplate;
 
+
     @Test
     void 동시예약_테스트() {
 
         // 테스트 코드가 정상적으로 실행되는지 확인
         assertTrue(true);
     }
+
 
     @Test
     void 낙관적락_충돌_테스트() throws InterruptedException {
@@ -85,6 +89,7 @@ class ReservationServiceTest {
         Runnable reservationTask = () -> {
 
             try {
+
                 transactionTemplate.executeWithoutResult(status -> {
 
                     // 같은 좌석 조회
@@ -104,11 +109,16 @@ class ReservationServiceTest {
                     targetSeat.reserve();
 
                     try {
+
                         // DB에 즉시 반영
                         seatRepository.saveAndFlush(targetSeat);
+
+                        // 예약 성공
                         successCount.incrementAndGet();
 
                     } catch (ObjectOptimisticLockingFailureException e) {
+
+                        // 낙관적 락 충돌
                         conflictCount.incrementAndGet();
                     }
                 });
@@ -141,12 +151,19 @@ class ReservationServiceTest {
         assertEquals(1, conflictCount.get());
     }
 
+
     @Test
     void 실제_예약서비스_동시예약_테스트() throws InterruptedException {
 
-        // 테스트 사용자 조회
-        User user = userRepository.findById(3126L)
-                .orElseThrow();
+        // 테스트용 사용자 생성
+        User user = userRepository.save(
+                User.builder()
+                        .email("test@test.com")
+                        .password("1234")
+                        .name("테스트 사용자")
+                        .createdAt(LocalDateTime.now())
+                        .build()
+        );
 
         // 테스트용 경기 생성
         Game game = gameRepository.save(
@@ -186,14 +203,21 @@ class ReservationServiceTest {
         Runnable reservationTask = () -> {
 
             try {
+
+                // 현재 스레드에 테스트 사용자 인증 정보 설정
+                SecurityContextHolder.getContext().setAuthentication(
+                        new UsernamePasswordAuthenticationToken(
+                                user.getEmail(),
+                                null,
+                                null
+                        )
+                );
+
                 // 동시에 시작
                 start.await();
 
                 // 실제 예약 서비스 호출
-                reservationService.createReservation(
-                        request,
-                        user.getId()
-                );
+                reservationService.createReservation(request);
 
                 // 예약 성공
                 successCount.incrementAndGet();
@@ -204,6 +228,11 @@ class ReservationServiceTest {
                 failCount.incrementAndGet();
 
                 System.out.println("예약 실패: " + e.getMessage());
+
+            } finally {
+
+                // 테스트가 끝나면 인증 정보 제거
+                SecurityContextHolder.clearContext();
             }
         };
 
