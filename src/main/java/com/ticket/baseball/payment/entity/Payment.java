@@ -35,10 +35,25 @@ public class Payment {
     // 결제 시간
     private LocalDateTime paidAt;
 
+    // 토스 결제 키
+    @Column(nullable = false, unique = true)
+    private String paymentKey;
+
+    // 토스 주문 ID
+    @Column(nullable = false, unique = true)
+    private String orderId;
+
     @Builder
-    public Payment(Reservation reservation, Long amount) {
+    public Payment(
+            Reservation reservation,
+            Long amount,
+            String paymentKey,
+            String orderId
+    ) {
         this.reservation = reservation;
         this.amount = amount;
+        this.paymentKey = paymentKey;
+        this.orderId = orderId;
         this.status = PaymentStatus.PAID;
         this.paidAt = LocalDateTime.now();
     }

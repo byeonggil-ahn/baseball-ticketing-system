@@ -27,18 +27,22 @@ public class SecurityConfig {
             JwtEntryPoint jwtEntryPoint) throws Exception {
 
         http
-                // CSRF 비활성화 (REST API에서는 일반적으로 사용하지 않음)
+                // CSRF 비활성화
                 .csrf(csrf -> csrf.disable())
 
                 // URL 접근 권한 설정
                 .authorizeHttpRequests(auth -> auth
 
-                        // 회원가입, 로그인, 경기 테스트 API는 누구나 접근 가능
+                        // 인증 없이 접근 가능한 URL
                         .requestMatchers(
                                 "/users/signup",
                                 "/users/login",
                                 "/users/test",
-                                "/games"
+                                "/games",
+                                "/payment.html",
+                                "/payment-success.html",
+                                "/payment-fail.html",
+                                "/payments/*/confirm"
                         ).permitAll()
 
                         // 그 외 모든 요청은 JWT 인증 필요
@@ -56,8 +60,11 @@ public class SecurityConfig {
                         exception.authenticationEntryPoint(jwtEntryPoint)
                 );
 
-        // JWT 인증 필터를 UsernamePasswordAuthenticationFilter 이전에 실행
-        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+        // JWT 인증 필터 실행
+        http.addFilterBefore(
+                jwtFilter,
+                UsernamePasswordAuthenticationFilter.class
+        );
 
         return http.build();
     }

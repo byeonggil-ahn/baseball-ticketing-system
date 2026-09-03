@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>결제 성공</title>
+</head>
+
+<body>
+
+<h2>결제 처리 중...</h2>
+
+<p id="result">
+  토스 결제 승인 요청 중입니다.
+</p>
+
+<script>
+
+  // URL에서 예약 ID 가져오기
+  const urlParams =
+          new URLSearchParams(window.location.search);
+
+  const reservationId =
+          urlParams.get("reservationId");
+
+  // 토스가 전달한 결제 정보
+  const paymentKey =
+          urlParams.get("paymentKey");
+
+  const orderId =
+          urlParams.get("orderId");
+
+  const amount =
+          Number(urlParams.get("amount"));
+
+  // 예약 ID 확인
+  if (!reservationId) {
+
+    document.getElementById("result").innerText =
+            "예약 정보가 없습니다.";
+
+    throw new Error("reservationId가 없습니다.");
+  }
+
+  // 토스 결제 정보 확인
+  if (!paymentKey || !orderId || !amount) {
+
+    document.getElementById("result").innerText =
+            "토스 결제 정보를 가져오지 못했습니다.";
+
+    throw new Error(
+            "토스 결제 정보가 없습니다."
+    );
+  }
+
+  // 우리 서버에 토스 결제 승인 요청
+  fetch(
+          `/payments/${reservationId}/confirm`,
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type": "application/json"
+            },
+
+            // 결제 정보 전달
+            body: JSON.stringify({
+
+              paymentKey: paymentKey,
+
+              orderId: orderId,
+
+              amount: amount
+
+            })
+          }
+  )
+
+          // 서버 응답 처리
+          .then(async response => {
+
+            const data =
+                    await response.json();
+
+            if (!response.ok) {
+
+              throw new Error(
+                      data.message ||
+                      "결제 승인에 실패했습니다."
+              );
+            }
+
+            return data;
+          })
+
+          // 결제 승인 성공
+          .then(data => {
+
+            document.getElementById("result").innerText =
+                    "결제가 정상적으로 완료되었습니다.";
+
+            console.log(
+                    "결제 정보:",
+                    data
+            );
+          })
+
+          // 오류 처리
+          .catch(error => {
+
+            console.error(error);
+
+            document.getElementById("result").innerText =
+                    "결제 승인에 실패했습니다: " +
+                    error.message;
+          });
+
+</script>
+
+</body>
+</html>

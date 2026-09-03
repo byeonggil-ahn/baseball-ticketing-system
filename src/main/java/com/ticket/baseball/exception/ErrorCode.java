@@ -26,6 +26,7 @@ public enum ErrorCode {
     PAYMENT_NOT_FOUND("결제를 찾을 수 없습니다."),
     PAYMENT_ALREADY_COMPLETED("이미 결제된 예약입니다."),
     PAYMENT_ACCESS_DENIED("본인의 결제만 조회할 수 있습니다."),
+    PAYMENT_AMOUNT_MISMATCH("결제 금액이 일치하지 않습니다."),
 
     // 동시 예약 충돌
     OPTIMISTIC_LOCK_CONFLICT("다른 사용자가 먼저 예약한 좌석입니다."),

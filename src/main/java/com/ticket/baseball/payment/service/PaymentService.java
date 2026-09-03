@@ -19,6 +19,7 @@ public class PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final ReservationRepository reservationRepository;
+    private final TossPaymentService tossPaymentService;
 
     // 결제 생성
     @Transactional
@@ -48,6 +49,54 @@ public class PaymentService {
         Payment payment = Payment.builder()
                 .reservation(reservation)
                 .amount(10000L)
+                .paymentKey("TEMP")
+                .orderId("TEMP-" + reservationId)
+                .build();
+
+        Payment savedPayment = paymentRepository.save(payment);
+
+        return new PaymentResponse(savedPayment);
+    }
+
+    // 토스 결제 승인
+    @Transactional
+    public PaymentResponse confirmPayment(
+            Long reservationId,
+            String paymentKey,
+            String orderId,
+            Long amount
+    ) {
+
+        Reservation reservation = reservationRepository.findById(reservationId)
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESERVATION_NOT_FOUND));
+
+        // 중복 결제 확인
+        paymentRepository.findByReservationId(reservationId)
+                .ifPresent(payment -> {
+                    throw new BusinessException(
+                            ErrorCode.PAYMENT_ALREADY_COMPLETED);
+                });
+
+        // 결제 금액 확인
+        if (amount != 10000L) {
+            throw new BusinessException(
+                    ErrorCode.PAYMENT_AMOUNT_MISMATCH);
+        }
+
+        // 토스 결제 승인 요청
+        tossPaymentService.confirmPayment(
+                paymentKey,
+                orderId,
+                amount.intValue()
+        );
+
+        // 토스 승인 성공 후 결제 저장
+        Payment payment = Payment.builder()
+                .reservation(reservation)
+                .amount(amount)
+                .paymentKey(paymentKey)
+                .orderId(orderId)
                 .build();
 
         Payment savedPayment = paymentRepository.save(payment);
