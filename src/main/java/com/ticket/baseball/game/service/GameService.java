@@ -28,6 +28,8 @@ public class GameService {
                 .awayTeam(request.getAwayTeam())
                 .stadium(request.getStadium())
                 .gameDate(request.getGameDate())
+                .reservationStartAt(request.getReservationStartAt())
+                .reservationEndAt(request.getReservationEndAt())
                 .createdAt(LocalDateTime.now())
                 .build();
 

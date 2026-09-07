@@ -14,6 +14,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Collections;
 
+
+// JWT 인증 처리
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -57,13 +59,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        // JWT에서 사용자 이메일 추출
-        String email = jwtProvider.getEmailFromToken(token);
+        // JWT에서 로그인 아이디 추출
+        String loginId = jwtProvider.getLoginIdFromToken(token);
 
         // 인증 객체 생성
         UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(
-                        email,
+                        loginId,
                         null,
                         Collections.emptyList()
                 );

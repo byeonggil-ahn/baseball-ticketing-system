@@ -15,6 +15,8 @@ public class GameResponse {
     private final String awayTeam;
     private final String stadium;
     private final LocalDateTime gameDate;
+    private final LocalDateTime reservationStartAt;
+    private final LocalDateTime reservationEndAt;
 
 
     // Entity -> DTO 변환
@@ -24,5 +26,7 @@ public class GameResponse {
         this.awayTeam = game.getAwayTeam();
         this.stadium = game.getStadium();
         this.gameDate = game.getGameDate();
+        this.reservationStartAt = game.getReservationStartAt();
+        this.reservationEndAt = game.getReservationEndAt();
     }
 }

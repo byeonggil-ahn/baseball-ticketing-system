@@ -20,4 +20,10 @@ public class GameCreateRequest {
 
     // 경기 시간
     private LocalDateTime gameDate;
+
+    // 예약 시작 시간
+    private LocalDateTime reservationStartAt;
+
+    // 예약 종료 시간
+    private LocalDateTime reservationEndAt;
 }

@@ -1,31 +1,22 @@
 package com.ticket.baseball.user.dto;
 
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+
+// 로그인 요청 데이터
+@Getter
+@NoArgsConstructor
 public class UserLoginRequest {
 
-    private String email;
+    // 로그인 아이디
+    private String loginId;
+
+    // 비밀번호
     private String password;
 
-    public UserLoginRequest() {
-    }
-
-    public UserLoginRequest(String email, String password) {
-        this.email = email;
-        this.password = password;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
+    public UserLoginRequest(String loginId, String password) {
+        this.loginId = loginId;
         this.password = password;
     }
 }

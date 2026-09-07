@@ -19,11 +19,11 @@ public class QueueController {
     // 현재 JWT 로그인 사용자 조회
     private User getCurrentUser() {
 
-        String email = SecurityContextHolder.getContext()
+        String loginId = SecurityContextHolder.getContext()
                 .getAuthentication()
                 .getName();
 
-        return userRepository.findByEmail(email)
+        return userRepository.findByLoginId(loginId)
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.USER_NOT_FOUND)
                 );

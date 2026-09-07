@@ -32,10 +32,10 @@ public class PaymentService {
         Authentication authentication =
                 SecurityContextHolder.getContext().getAuthentication();
 
-        String email = authentication.getName();
+        String loginId = authentication.getName();
 
         // 본인 예약 확인
-        if (!reservation.getUser().getEmail().equals(email)) {
+        if (!reservation.getUser().getLoginId().equals(loginId)) {
             throw new BusinessException(ErrorCode.RESERVATION_ACCESS_DENIED);
         }
 
@@ -115,10 +115,10 @@ public class PaymentService {
         Authentication authentication =
                 SecurityContextHolder.getContext().getAuthentication();
 
-        String email = authentication.getName();
+        String loginId = authentication.getName();
 
         // 본인 결제 확인
-        if (!payment.getReservation().getUser().getEmail().equals(email)) {
+        if (!payment.getReservation().getUser().getLoginId().equals(loginId)) {
             throw new BusinessException(ErrorCode.PAYMENT_ACCESS_DENIED);
         }
 

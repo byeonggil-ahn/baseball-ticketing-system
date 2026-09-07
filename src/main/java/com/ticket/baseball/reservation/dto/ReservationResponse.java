@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Builder
@@ -13,6 +14,9 @@ public class ReservationResponse {
     private Long id;
     private Long userId;
     private Long gameId;
-    private Long seatId;
+
+    // 예약한 좌석 ID 목록
+    private List<Long> seatIds;
+
     private LocalDateTime reservedAt;
 }

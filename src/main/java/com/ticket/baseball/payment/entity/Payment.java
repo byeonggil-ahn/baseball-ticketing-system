@@ -36,11 +36,11 @@ public class Payment {
     private LocalDateTime paidAt;
 
     // 토스 결제 키
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String paymentKey;
 
     // 토스 주문 ID
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String orderId;
 
     @Builder

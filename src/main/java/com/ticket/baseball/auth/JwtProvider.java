@@ -11,6 +11,8 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
+
+// JWT 생성 및 검증 처리
 @Component
 public class JwtProvider {
 
@@ -27,15 +29,15 @@ public class JwtProvider {
     }
 
     // JWT 생성
-    public String createToken(String email) {
+    public String createToken(String loginId) {
 
         Date now = new Date();
 
         return Jwts.builder()
-                .subject(email)                           // 사용자 이메일 저장
-                .issuedAt(now)                            // 발급 시간
-                .expiration(new Date(now.getTime() + expiration)) // 만료 시간
-                .signWith(secretKey)                      // 서명
+                .subject(loginId)
+                .issuedAt(now)
+                .expiration(new Date(now.getTime() + expiration))
+                .signWith(secretKey)
                 .compact();
     }
 
@@ -53,8 +55,8 @@ public class JwtProvider {
         }
     }
 
-    // JWT에서 이메일 추출
-    public String getEmailFromToken(String token) {
+    // JWT에서 로그인 아이디 추출
+    public String getLoginIdFromToken(String token) {
 
         Claims claims = Jwts.parser()
                 .verifyWith(secretKey)

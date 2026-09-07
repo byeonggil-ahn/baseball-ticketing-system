@@ -8,12 +8,12 @@ import com.ticket.baseball.queue.QueueService;
 import com.ticket.baseball.reservation.dto.ReservationRequest;
 import com.ticket.baseball.reservation.dto.ReservationResponse;
 import com.ticket.baseball.reservation.entity.Reservation;
+import com.ticket.baseball.reservation.entity.ReservationSeat;
 import com.ticket.baseball.reservation.entity.ReservationStatus;
 import com.ticket.baseball.reservation.repository.ReservationRepository;
 import com.ticket.baseball.seat.entity.Seat;
-import com.ticket.baseball.seat.entity.SeatStatus;
-import com.ticket.baseball.seat.repository.SeatRepository;
 import com.ticket.baseball.seat.service.SeatLockService;
+import com.ticket.baseball.seat.service.SeatService;
 import com.ticket.baseball.user.entity.User;
 import com.ticket.baseball.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +22,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -30,9 +31,9 @@ public class ReservationService {
 
     private final ReservationRepository reservationRepository;
     private final GameRepository gameRepository;
-    private final SeatRepository seatRepository;
     private final UserRepository userRepository;
     private final SeatLockService seatLockService;
+    private final SeatService seatService;
     private final QueueService queueService;
 
     // 예약 전체 조회
@@ -50,13 +51,13 @@ public class ReservationService {
             ReservationRequest request
     ) {
 
-        // 현재 JWT로 로그인한 사용자의 이메일 가져오기
-        String email = SecurityContextHolder.getContext()
+        // 현재 JWT로 로그인한 사용자의 로그인 아이디 가져오기
+        String loginId = SecurityContextHolder.getContext()
                 .getAuthentication()
                 .getName();
 
-        // 이메일로 사용자 조회
-        User user = userRepository.findByEmail(email)
+        // 로그인 아이디로 사용자 조회
+        User user = userRepository.findByLoginId(loginId)
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.USER_NOT_FOUND)
                 );
@@ -77,74 +78,129 @@ public class ReservationService {
             );
         }
 
+        // 좌석 ID 목록 검증
+        List<Long> seatIds = request.getSeatIds();
+
+        if (seatIds == null || seatIds.isEmpty()) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_INPUT
+            );
+        }
+
+        // 동일한 좌석 ID가 여러 번 요청되었는지 확인
+        if (seatIds.size() != seatIds.stream().distinct().count()) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_INPUT
+            );
+        }
+
+        // 좌석 Lock 획득 순서를 항상 동일하게 유지
+        List<Long> sortedSeatIds = seatIds.stream()
+                .sorted()
+                .toList();
+
         // 좌석 조회
-        Seat seat = seatRepository.findById(request.getSeatId())
-                .orElseThrow(() ->
-                        new BusinessException(ErrorCode.INVALID_INPUT)
-                );
+        List<Seat> seats =
+                seatService.getSeatsByIds(sortedSeatIds);
 
         // 좌석이 해당 경기의 좌석인지 확인
-        if (!seat.getGame().getId().equals(game.getId())) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT);
-        }
-
-        // Redis에서 좌석을 먼저 선점
-        boolean locked = seatLockService.lockSeat(
-                request.getGameId(),
-                request.getSeatId(),
-                user.getId()
+        // 이미 예약된 좌석인지 확인
+        seatService.validateSeats(
+                seats,
+                game.getId()
         );
 
-        if (!locked) {
-            throw new BusinessException(
-                    ErrorCode.DUPLICATE_RESERVATION
-            );
-        }
+        // Redis에서 여러 좌석을 순서대로 선점
+        List<Long> lockedSeatIds = new ArrayList<>();
 
-        // DB에서 이미 예약된 좌석인지 확인
-        if (seat.getStatus() == SeatStatus.RESERVED) {
-
-            seatLockService.unlockSeat(
-                    request.getGameId(),
-                    request.getSeatId()
-            );
-
-            throw new BusinessException(
-                    ErrorCode.DUPLICATE_RESERVATION
-            );
-        }
-
-        // 좌석 상태를 RESERVED로 변경
-        seat.reserve();
-
-        // 낙관적 락 충돌 처리
         try {
 
-            seatRepository.saveAndFlush(seat);
+            for (Long seatId : sortedSeatIds) {
+
+                boolean locked = seatLockService.lockSeat(
+                        game.getId(),
+                        seatId,
+                        user.getId()
+                );
+
+                if (!locked) {
+
+                    throw new BusinessException(
+                            ErrorCode.DUPLICATE_RESERVATION
+                    );
+                }
+
+                // 실제로 Lock을 획득한 좌석 기록
+                lockedSeatIds.add(seatId);
+            }
+
+            // Redis Lock 획득 후 DB 상태 다시 확인
+            seatService.validateSeats(
+                    seats,
+                    game.getId()
+            );
+
+            // 여러 좌석을 RESERVED 상태로 변경
+            seatService.reserveSeats(seats);
+
+            // 예약 생성
+            Reservation reservation = Reservation.builder()
+                    .user(user)
+                    .game(game)
+                    .build();
+
+            // 예약 저장
+            Reservation savedReservation =
+                    reservationRepository.save(reservation);
+
+            // 예약과 여러 좌석 연결
+            for (Seat seat : seats) {
+
+                ReservationSeat reservationSeat =
+                        ReservationSeat.builder()
+                                .reservation(savedReservation)
+                                .seat(seat)
+                                .build();
+
+                savedReservation.addReservationSeat(
+                        reservationSeat
+                );
+            }
+
+            return toResponse(savedReservation);
 
         } catch (ObjectOptimisticLockingFailureException e) {
 
-            seatLockService.unlockSeat(
-                    request.getGameId(),
-                    request.getSeatId()
+            // 낙관적 락 충돌 발생 시 획득한 Redis Lock 전부 해제
+            unlockSeats(
+                    game.getId(),
+                    lockedSeatIds
             );
 
             throw new BusinessException(
                     ErrorCode.OPTIMISTIC_LOCK_CONFLICT
             );
+
+        } catch (BusinessException e) {
+
+            // 예약 실패 시 획득한 Redis Lock 전부 해제
+            unlockSeats(
+                    game.getId(),
+                    lockedSeatIds
+            );
+
+            throw e;
+
+        } catch (Exception e) {
+
+            // 예상하지 못한 오류가 발생해도 Lock 정리
+            unlockSeats(
+                    game.getId(),
+                    lockedSeatIds
+            );
+
+            throw e;
         }
-
-        // 예약 생성
-        Reservation reservation = Reservation.builder()
-                .user(user)
-                .game(game)
-                .seat(seat)
-                .build();
-
-        Reservation savedReservation =
-                reservationRepository.save(reservation);
-
-        return toResponse(savedReservation);
     }
 
     // 예약 취소
@@ -153,13 +209,13 @@ public class ReservationService {
             Long reservationId
     ) {
 
-        // 현재 JWT로 로그인한 사용자의 이메일 가져오기
-        String email = SecurityContextHolder.getContext()
+        // 현재 JWT로 로그인한 사용자의 로그인 아이디 가져오기
+        String loginId = SecurityContextHolder.getContext()
                 .getAuthentication()
                 .getName();
 
-        // 이메일로 현재 사용자 조회
-        User user = userRepository.findByEmail(email)
+        // 로그인 아이디로 현재 사용자 조회
+        User user = userRepository.findByLoginId(loginId)
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.USER_NOT_FOUND)
                 );
@@ -190,15 +246,38 @@ public class ReservationService {
         // 예약 상태를 CANCELLED로 변경
         reservation.cancel();
 
-        // 좌석 상태를 AVAILABLE로 변경
-        Seat seat = reservation.getSeat();
-        seat.cancelReservation();
+        // 예약에 연결된 모든 좌석 조회
+        List<Seat> seats = reservation.getReservationSeats()
+                .stream()
+                .map(ReservationSeat::getSeat)
+                .toList();
 
-        // Redis 좌석 선점 해제
-        seatLockService.unlockSeat(
-                reservation.getGame().getId(),
-                seat.getId()
-        );
+        // 모든 좌석을 AVAILABLE 상태로 복구
+        seatService.cancelSeats(seats);
+
+        // 모든 좌석의 Redis Lock 해제
+        for (Seat seat : seats) {
+
+            seatLockService.unlockSeat(
+                    reservation.getGame().getId(),
+                    seat.getId()
+            );
+        }
+    }
+
+    // 획득한 Redis Lock 전체 해제
+    private void unlockSeats(
+            Long gameId,
+            List<Long> seatIds
+    ) {
+
+        for (Long seatId : seatIds) {
+
+            seatLockService.unlockSeat(
+                    gameId,
+                    seatId
+            );
+        }
     }
 
     // Entity를 DTO로 변환
@@ -210,7 +289,13 @@ public class ReservationService {
                 .id(reservation.getId())
                 .userId(reservation.getUser().getId())
                 .gameId(reservation.getGame().getId())
-                .seatId(reservation.getSeat().getId())
+                .seatIds(
+                        reservation.getReservationSeats()
+                                .stream()
+                                .map(ReservationSeat::getSeat)
+                                .map(Seat::getId)
+                                .toList()
+                )
                 .reservedAt(reservation.getReservedAt())
                 .build();
     }

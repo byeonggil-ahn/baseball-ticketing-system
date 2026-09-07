@@ -16,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
+
+// 사용자 관련 비즈니스 로직 처리
 @Service
 public class UserService {
 
@@ -23,9 +25,11 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
 
+
     public UserService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
                        JwtProvider jwtProvider) {
+
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtProvider = jwtProvider;
@@ -36,26 +40,33 @@ public class UserService {
     @Transactional
     public Long signup(UserSignupRequest request) {
 
-        // 1. 이메일 중복 체크
+        // 1. 로그인 아이디 중복 체크
+        if (userRepository.existsByLoginId(request.getLoginId())) {
+            throw new BusinessException(ErrorCode.DUPLICATE_USER);
+        }
+
+        // 2. 이메일 중복 체크
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new BusinessException(ErrorCode.DUPLICATE_USER);
         }
 
 
-        // 2. 비밀번호 암호화 후 회원 객체 생성
+        // 3. 비밀번호 암호화 후 회원 객체 생성
         User user = User.builder()
-                .email(request.getEmail())
+                .loginId(request.getLoginId())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .name(request.getName())
+                .nickname(request.getNickname())
+                .email(request.getEmail())
+                .role("USER")
                 .createdAt(LocalDateTime.now())
                 .build();
 
 
-        // 3. 회원 저장
+        // 4. 회원 저장
         userRepository.save(user);
 
 
-        // 4. 생성된 회원 ID 반환
+        // 5. 생성된 회원 ID 반환
         return user.getId();
     }
 
@@ -64,9 +75,8 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserLoginResponse login(UserLoginRequest request) {
 
-
-        // 1. 이메일로 회원 조회
-        User user = userRepository.findByEmail(request.getEmail())
+        // 1. 로그인 아이디로 회원 조회
+        User user = userRepository.findByLoginId(request.getLoginId())
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.USER_NOT_FOUND));
 
@@ -81,13 +91,14 @@ public class UserService {
 
 
         // 3. JWT 생성
-        String accessToken = jwtProvider.createToken(user.getEmail());
+        // JWT의 subject에 로그인 아이디 저장
+        String accessToken = jwtProvider.createToken(user.getLoginId());
 
 
         // 4. 로그인 성공 응답 반환
         return new UserLoginResponse(
                 user.getId(),
-                user.getName(),
+                user.getNickname(),
                 user.getEmail(),
                 accessToken
         );
@@ -98,14 +109,14 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserInfoResponse getMyInfo() {
 
-        // 1. SecurityContext에서 로그인한 사용자 이메일 조회
-        String email = SecurityContextHolder.getContext()
+        // 1. SecurityContext에서 로그인한 사용자 로그인 아이디 조회
+        String loginId = SecurityContextHolder.getContext()
                 .getAuthentication()
                 .getName();
 
 
-        // 2. 이메일로 회원 조회
-        User user = userRepository.findByEmail(email)
+        // 2. 로그인 아이디로 회원 조회
+        User user = userRepository.findByLoginId(loginId)
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.USER_NOT_FOUND));
 
@@ -114,7 +125,7 @@ public class UserService {
         return new UserInfoResponse(
                 user.getId(),
                 user.getEmail(),
-                user.getName()
+                user.getNickname()
         );
     }
 }

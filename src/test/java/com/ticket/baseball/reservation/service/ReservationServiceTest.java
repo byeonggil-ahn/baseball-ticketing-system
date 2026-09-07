@@ -3,6 +3,9 @@ package com.ticket.baseball.reservation.service;
 import com.ticket.baseball.game.entity.Game;
 import com.ticket.baseball.game.repository.GameRepository;
 import com.ticket.baseball.reservation.dto.ReservationRequest;
+import com.ticket.baseball.reservation.dto.ReservationResponse;
+import com.ticket.baseball.reservation.entity.Reservation;
+import com.ticket.baseball.reservation.repository.ReservationRepository;
 import com.ticket.baseball.seat.entity.Seat;
 import com.ticket.baseball.seat.entity.SeatStatus;
 import com.ticket.baseball.seat.repository.SeatRepository;
@@ -17,6 +20,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -37,6 +41,9 @@ class ReservationServiceTest {
 
     @Autowired
     private SeatRepository seatRepository;
+
+    @Autowired
+    private ReservationRepository reservationRepository;
 
     @Autowired
     private ReservationService reservationService;
@@ -99,9 +106,12 @@ class ReservationServiceTest {
                     ready.countDown();
 
                     try {
+
                         // 두 스레드가 모두 조회할 때까지 대기
                         start.await();
+
                     } catch (InterruptedException e) {
+
                         Thread.currentThread().interrupt();
                     }
 
@@ -190,7 +200,7 @@ class ReservationServiceTest {
         // 예약 요청 생성
         ReservationRequest request = new ReservationRequest(
                 game.getId(),
-                seat.getId()
+                List.of(seat.getId())
         );
 
         CountDownLatch start = new CountDownLatch(1);
@@ -252,5 +262,129 @@ class ReservationServiceTest {
 
         // 한 요청은 실패
         assertEquals(1, failCount.get());
+    }
+
+
+    @Test
+    void 여러좌석_예약_테스트() {
+
+        // 테스트용 사용자 생성
+        User user = userRepository.save(
+                User.builder()
+                        .email("multi@test.com")
+                        .password("1234")
+                        .name("다중 좌석 테스트 사용자")
+                        .createdAt(LocalDateTime.now())
+                        .build()
+        );
+
+        // 테스트용 경기 생성
+        Game game = gameRepository.save(
+                Game.builder()
+                        .homeTeam("한화 이글스")
+                        .awayTeam("LG 트윈스")
+                        .stadium("대전 한화생명 볼파크")
+                        .gameDate(LocalDateTime.now())
+                        .createdAt(LocalDateTime.now())
+                        .build()
+        );
+
+        // 첫 번째 좌석 생성
+        Seat seat1 = seatRepository.save(
+                Seat.builder()
+                        .game(game)
+                        .section("1루")
+                        .rowNumber(1)
+                        .seatNumber(1)
+                        .status(SeatStatus.AVAILABLE)
+                        .build()
+        );
+
+        // 두 번째 좌석 생성
+        Seat seat2 = seatRepository.save(
+                Seat.builder()
+                        .game(game)
+                        .section("1루")
+                        .rowNumber(1)
+                        .seatNumber(2)
+                        .status(SeatStatus.AVAILABLE)
+                        .build()
+        );
+
+        // JWT 인증 정보 설정
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(
+                        user.getEmail(),
+                        null,
+                        null
+                )
+        );
+
+        try {
+
+            // 두 좌석을 하나의 예약으로 요청
+            ReservationRequest request = new ReservationRequest(
+                    game.getId(),
+                    List.of(
+                            seat1.getId(),
+                            seat2.getId()
+                    )
+            );
+
+            // 예약 생성
+            ReservationResponse response =
+                    reservationService.createReservation(request);
+
+            // 예약 ID가 정상적으로 생성되었는지 확인
+            assertTrue(response.getId() != null);
+
+            // 좌석이 2개 연결되었는지 확인
+            assertEquals(2, response.getSeatIds().size());
+
+            // 요청한 좌석 ID가 모두 포함되었는지 확인
+            assertTrue(
+                    response.getSeatIds().contains(seat1.getId())
+            );
+
+            assertTrue(
+                    response.getSeatIds().contains(seat2.getId())
+            );
+
+            // DB에서 좌석 상태 확인
+            Seat savedSeat1 =
+                    seatRepository.findById(seat1.getId())
+                            .orElseThrow();
+
+            Seat savedSeat2 =
+                    seatRepository.findById(seat2.getId())
+                            .orElseThrow();
+
+            // 두 좌석 모두 RESERVED 상태인지 확인
+            assertEquals(
+                    SeatStatus.RESERVED,
+                    savedSeat1.getStatus()
+            );
+
+            assertEquals(
+                    SeatStatus.RESERVED,
+                    savedSeat2.getStatus()
+            );
+
+            // 예약이 DB에 정상 저장되었는지 확인
+            Reservation reservation =
+                    reservationRepository.findById(response.getId())
+                            .orElseThrow();
+
+            // 하나의 예약에 좌석 2개가 연결되었는지 확인
+            assertEquals(
+                    2,
+                    reservation.getSeats().size()
+            );
+
+        } finally {
+
+            // 테스트가 끝나면 인증 정보 제거
+            SecurityContextHolder.clearContext();
+        }
     }
 }
