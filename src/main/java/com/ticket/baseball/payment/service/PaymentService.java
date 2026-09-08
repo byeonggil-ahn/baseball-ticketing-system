@@ -36,7 +36,9 @@ public class PaymentService {
 
         // 본인 예약 확인
         if (!reservation.getUser().getLoginId().equals(loginId)) {
-            throw new BusinessException(ErrorCode.RESERVATION_ACCESS_DENIED);
+            throw new BusinessException(
+                    ErrorCode.PAYMENT_RESERVATION_ACCESS_DENIED
+            );
         }
 
         // 중복 결제 확인
@@ -70,6 +72,18 @@ public class PaymentService {
         Reservation reservation = reservationRepository.findById(reservationId)
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.RESERVATION_NOT_FOUND));
+
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+
+        String loginId = authentication.getName();
+
+        // 본인 예약 확인
+        if (!reservation.getUser().getLoginId().equals(loginId)) {
+            throw new BusinessException(
+                    ErrorCode.PAYMENT_RESERVATION_ACCESS_DENIED
+            );
+        }
 
         // 중복 결제 확인
         paymentRepository.findByReservationId(reservationId)
@@ -119,7 +133,8 @@ public class PaymentService {
 
         // 본인 결제 확인
         if (!payment.getReservation().getUser().getLoginId().equals(loginId)) {
-            throw new BusinessException(ErrorCode.PAYMENT_ACCESS_DENIED);
+            throw new BusinessException(
+                    ErrorCode.PAYMENT_ACCESS_DENIED);
         }
 
         return new PaymentResponse(payment);

@@ -41,8 +41,7 @@ public class SecurityConfig {
                                 "/games",
                                 "/payment.html",
                                 "/payment-success.html",
-                                "/payment-fail.html",
-                                "/payments/*/confirm"
+                                "/payment-fail.html"
                         ).permitAll()
 
                         // 그 외 모든 요청은 JWT 인증 필요
