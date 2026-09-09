@@ -22,6 +22,11 @@ public class SeatService {
         return seatRepository.findAll();
     }
 
+    // 경기별 좌석 조회
+    public List<Seat> getSeatsByGameId(Long gameId) {
+        return seatRepository.findByGameId(gameId);
+    }
+
     // 좌석 저장
     public Seat saveSeat(Seat seat) {
         return seatRepository.save(seat);

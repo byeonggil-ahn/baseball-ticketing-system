@@ -24,4 +24,15 @@ public class SeatController {
                 .map(SeatResponse::new)
                 .toList();
     }
+
+    // 경기별 좌석 조회
+    @GetMapping("/game/{gameId}")
+    public List<SeatResponse> getSeatsByGameId(
+            @PathVariable Long gameId
+    ) {
+        return seatService.getSeatsByGameId(gameId)
+                .stream()
+                .map(SeatResponse::new)
+                .toList();
+    }
 }
